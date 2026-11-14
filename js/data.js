@@ -81,7 +81,7 @@ const NS_KINDS = [["Биоугроза", true], ["Задымление", true], 
                   ["Отказ локомотива", false], ["Сход колёсной пары", true]];
 const TRANSIT = { "Окт": [40, 80], "Моск": [50, 95], "Ю-З": [90, 150], "С-З": [110, 170], "Вост": [70, 115] };
 
-export function generate(seed, stations) {
+export function generate(seed, stations, { heavy = false } = {}) {
   const r = rng(seed);
   const int = (a, b) => a + Math.floor(r() * (b - a + 1));
   const pick = a => a[Math.floor(r() * a.length)];
@@ -91,10 +91,12 @@ export function generate(seed, stations) {
   const date = `${pad(d.getUTCDate())}.${pad(d.getUTCMonth() + 1)}.${d.getUTCFullYear()}, ${WD[d.getUTCDay()]}`;
   const transit = Object.fromEntries(POLYS.map(p => [p, int(...TRANSIT[p])]));
 
-  // опоздания: сколько, где, сколько минут; станции не ближе 90 px друг к другу
-  const total = r() < 0.08 ? int(0, 3) : int(5, 22);
+  // опоздания: сколько, где, сколько минут. Станции могут стоять рядом и повторяться (в загруженной смене):
+  // близкие поезда табло объединяет в группу с числом на значке
+  const total = heavy ? int(32, 44) : r() < 0.08 ? int(0, 3) : int(5, 22);
+  const gapPx = heavy ? 0 : 40;
   const used = new Set(), chosen = [];
-  const free = () => stations.filter(s => !chosen.some(c => Math.hypot(c.x - s.x, c.y - s.y) < 90));
+  const free = () => stations.filter(s => !chosen.some(c => Math.hypot(c.x - s.x, c.y - s.y) < gapPx));
   const trains = [];
   for (let i = 0; i < total; i++) {
     const cand = free();
@@ -127,20 +129,27 @@ export function generate(seed, stations) {
     kids: [int(90, 220), int(30, 70) * 100, int(80, 240)], transitDelta: `${pick(["+", "−"])}${int(1, 9)} %`,
     intl: int(5, 25), foreign: int(3, 15) };
 
-  // НС (показывается в режиме «НС»): один из обычных опаздывающих поездов
-  let ns = null;
-  const regular = trains.filter(t => !t.speed && t.delay < 120);
-  const base = regular.length ? pick(regular) : null;
-  if (base) {
+  // НС: до 4 обычных опаздывающих поездов; первая в списке – главная (идёт дольше всех).
+  // Режим «НС» показывает только главную, режим «несколько НС» – все.
+  // НС выбираются не ближе 300 px друг к другу, чтобы ореолы на карте не сливались
+  const xy = Object.fromEntries(stations.map(s => [s.name, s]));
+  const regular = trains.filter(t => !t.speed && t.delay < 120).sort(() => r() - 0.5);
+  const nsTrains = [];
+  for (const t of regular) {
+    if (nsTrains.length >= (heavy ? 4 : 3)) break;
+    const p = xy[t.station];
+    if (nsTrains.every(u => Math.hypot(xy[u.station].x - p.x, xy[u.station].y - p.y) >= 300)) nsTrains.push(t);
+  }
+  const ns = nsTrains.map(base => {
     const [kind, car] = pick(NS_KINDS);
     const carN = int(2, 14), pax = int(300, 980), inCar = int(30, 90), tr = int(1, 6);
     const mins = base.delay, start = now - mins;
-    ns = { train: base.id, kind: car ? `${kind} · вагон ${carN}` : kind, since: hm(start), mins,
+    return { train: base.id, kind: car ? `${kind} · вагон ${carN}` : kind, since: hm(start), mins,
       facts: [[`Стоит на ${tr}-м пути`], ["Задержка ", `${mins} мин`, "amber"], ["Новое время – уточняется"],
               car ? [`${pax} ${plural(pax, "пассажир", "пассажира", "пассажиров")}, в вагоне ${carN} – `, String(inCar), "bold"]
                   : [`${pax} ${plural(pax, "пассажир", "пассажира", "пассажиров")} в поезде`]],
       log: [[hm(start + 3), "ведёт руководитель смены"], [hm(start + Math.max(4, mins - 11)), "уведомлены службы"],
             [hm(now + int(5, 20)), car ? `решение по вагону ${carN}` : "замена локомотива", "next"]] };
-  }
+  }).sort((a, b) => b.mins - a.mins);
   return { time: hm(now), date, shift: "смена 19:00–07:00", updated: hm(now), stale, transit, trains, summary, side, ns };
 }

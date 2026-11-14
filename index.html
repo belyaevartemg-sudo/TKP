@@ -17,11 +17,23 @@
   <h1>ТКП ситуационного центра <span>· живой макет</span></h1>
   <div class="btns" role="group" aria-label="Управление">
     <button class="btn" id="rand" type="button">Случайная смена <kbd>R</kbd></button>
-    <button class="btn" id="ns" type="button" aria-pressed="false">Нештатная ситуация <kbd>N</kbd></button>
+    <button class="btn" id="heavy" type="button" aria-pressed="false">Загруженная смена <kbd>H</kbd></button>
+    <button class="btn" id="ns" type="button" aria-pressed="false"><span id="ns-txt">НС: нет</span> <kbd>N</kbd></button>
     <button class="btn" id="sample" type="button">Как в&nbsp;макете <kbd>M</kbd></button>
     <button class="btn" id="full" type="button">На&nbsp;весь экран <kbd>F</kbd></button>
   </div>
 </header>
+<form class="add" id="add" autocomplete="off" aria-label="Добавить поезд на табло">
+  <label class="f f-id"><span>Номер</span><input id="a-id" placeholder="сам" maxlength="9"></label>
+  <label class="f f-st"><span>Станция</span><input id="a-st" list="st-list" placeholder="начните вводить: Каз…"></label>
+  <datalist id="st-list"></datalist>
+  <label class="f f-dl"><span>Опоздание</span><input id="a-dl" placeholder="1:30 или 45"></label>
+  <label class="chk"><input type="checkbox" id="a-sp"> скоростной</label>
+  <button class="btn btn-acc" type="submit">Добавить поезд</button>
+  <button class="btn" type="button" id="a-rand">Случайный поезд <kbd>T</kbd></button>
+  <p class="add-msg" id="a-msg" aria-live="polite"></p>
+  <div class="chips" id="a-list"></div>
+</form>
 <p class="stat" id="stat" aria-live="polite">Загрузка…</p>
 <main class="stage">
   <div class="board-wrap" id="wrap"><div class="board" id="board"></div></div>
@@ -29,11 +41,14 @@
 <section class="foot">
   <h2>Что здесь происходит</h2>
   <p>Табло собирается из&nbsp;одного списка опаздывающих поездов. Счётчики «Опоздания», колонки полигонов, значки и&nbsp;подписи на&nbsp;карте считаются из&nbsp;него заново при&nbsp;каждой смене данных.</p>
-  <p>Подписи поездов раскладываются автоматически: в&nbsp;два этажа (номер над&nbsp;опозданием), в&nbsp;общей сетке рядов над&nbsp;или&nbsp;под&nbsp;своим поездом, без&nbsp;перекрытий и&nbsp;пересечений выносок. Если подпись не&nbsp;помещается, на&nbsp;карте остаётся значок, а&nbsp;поезд всё равно есть в&nbsp;колонке своего полигона.</p>
-  <p>В&nbsp;режиме «Нештатная ситуация» один из&nbsp;поездов становится НС: карточка сверху и&nbsp;справа, ореол на&nbsp;карте, жёлтые подписи временно скрыты.</p>
+  <p>Подписи поездов раскладываются автоматически: в&nbsp;два этажа (номер над&nbsp;опозданием), в&nbsp;общей сетке рядов над&nbsp;или&nbsp;под&nbsp;своим поездом, без&nbsp;перекрытий и&nbsp;пересечений выносок. Если места мало, подписи с&nbsp;самым долгим опозданием ставятся первыми: подпись не&nbsp;уступает место подписи с&nbsp;меньшим опозданием. Без&nbsp;подписи остаётся значок, а&nbsp;поезд всё равно есть в&nbsp;колонке своего полигона.</p>
+  <p>Поезда ближе 70&nbsp;px друг к&nbsp;другу объединяются в&nbsp;один значок с&nbsp;числом: «3»&nbsp;– три поезда, «1+2»&nbsp;– один красный и&nbsp;два жёлтых. Рамка цвета самого тяжёлого поезда, подпись группы&nbsp;– по&nbsp;самому долгому опозданию: «Т-128 и&nbsp;ещё 2».</p>
+  <p>Свой поезд добавляется строкой под кнопками: номер можно не&nbsp;писать, станция&nbsp;– с&nbsp;подсказками, опоздание как&nbsp;удобно: 45, 1:30, 1ч30. Табло сразу пересчитывается, значок нового поезда мигает, а&nbsp;под строкой видно, в&nbsp;какую колонку он&nbsp;попал и&nbsp;досталась&nbsp;ли ему подпись.</p>
+  <p>Кнопка «НС» переключает три состояния: нет НС, одна НС и&nbsp;несколько. При&nbsp;одной НС сверху и&nbsp;справа её&nbsp;карточки, на&nbsp;карте ореол, жёлтые подписи временно скрыты. При&nbsp;нескольких верхняя полоса становится списком (до&nbsp;трёх строк, дальше «ещё N НС»), карточка справа подробно показывает главную&nbsp;– ту, что идёт дольше всех, у&nbsp;каждой НС свой ореол на&nbsp;карте.</p>
+  <p>«Загруженная смена» даёт 32–44 опаздывающих поезда: так видно, как табло ведёт себя на&nbsp;пределе. Колонки полигонов показывают первые восемь поездов и&nbsp;«+N», подписи, которым не&nbsp;хватило места, снимаются, значки остаются.</p>
   <details>
     <summary>Свои данные</summary>
-    <p>Поправьте список поездов или&nbsp;другие поля и&nbsp;нажмите «Показать». Станция должна быть из&nbsp;каталога ниже.</p>
+    <p>Поправьте список поездов или&nbsp;другие поля и&nbsp;нажмите «Показать». Станция&nbsp;– из&nbsp;каталога ниже, или&nbsp;укажите у&nbsp;поезда свои координаты: <code>"lat": 55.75, "lon": 37.62</code>. Полигон определится по&nbsp;карте сам. Обязательны только <code>id</code>, <code>delay</code> (минуты) и&nbsp;станция или&nbsp;координаты.</p>
     <textarea id="json" spellcheck="false" aria-label="Данные смены в формате JSON"></textarea>
     <p><button class="btn" id="apply" type="button">Показать</button></p>
     <p class="err" id="err" hidden></p>

@@ -51,7 +51,7 @@ export function rng(seed) {
 }
 
 /**
- * dots: [{id, x, y}] – все значки на карте (подписанные и нет);
+ * dots: [{id, x, y, hw?}] – все значки на карте (подписанные и нет); hw – половина ширины значка (группа шире);
  * want: [{id, w, prio}] – кого подписать, ширина подписи, приоритет (больше – важнее);
  * fixed: [[x0,y0,x1,y1]] – занятые зоны; topLimit – верх первого ряда.
  * Возвращает {placed: {id: {r, l}}, dropped: [id], ms}.
@@ -60,7 +60,7 @@ export function layoutLabels({ dots, want, fixed = [], topLimit = 12, seed = 1, 
   const t0 = performance.now();
   const rnd = rng(seed);
   const pos = Object.fromEntries(dots.map(d => [d.id, d]));
-  const marks = dots.map(d => ({ id: d.id, r: [d.x - MK, d.y - MK, d.x + MK, d.y + MK] }));
+  const marks = dots.map(d => ({ id: d.id, r: [d.x - (d.hw || MK), d.y - MK, d.x + (d.hw || MK), d.y + MK] }));
   const grid = [];
   for (let y = topLimit; y <= H_MAP - MARGIN - LH; y += rowStep) grid.push(y);
 
@@ -94,13 +94,42 @@ export function layoutLabels({ dots, want, fixed = [], topLimit = 12, seed = 1, 
   }
 
   let items = want.map(t => ({ ...t, D: domain(t) }));
+  const byId = Object.fromEntries(items.map(t => [t.id, t]));
   const dropped = items.filter(t => !t.D.length).map(t => t.id);
+
+  // Строгий приоритет: подпись без места пробует встать на свободное место, а если его нет –
+  // вытеснить до четырёх подписей с меньшим опозданием (они потом сами ищут свободное место).
+  // Так поезд с большим опозданием не остаётся без подписи из-за поезда с меньшим.
+  function finish(sel) {
+    const pending = dropped.map(id => byId[id]).filter(t => t.D.length);
+    const freeFor = c => Object.values(sel).every(o => pairOk(c, o));
+    for (let guard = 0; pending.length && guard < 300 && performance.now() - t0 < budgetMs + 1000; guard++) {
+      pending.sort((a, b) => b.prio - a.prio);
+      const t = pending.shift();
+      let c = t.D.find(freeFor);
+      if (!c) for (const cand of t.D.slice(0, 200)) {
+        const conf = Object.keys(sel).filter(u => !pairOk(cand, sel[u]));
+        if (conf.length <= 4 && conf.every(u => byId[u].prio < t.prio)) {
+          conf.forEach(u => { delete sel[u]; pending.push(byId[u]); });
+          c = cand; break;
+        }
+      }
+      if (c) sel[t.id] = c;
+    }
+    const placed = {};
+    for (const [id, c] of Object.entries(sel)) placed[id] = { r: c.r, l: c.l };
+    const lost = want.map(t => t.id).filter(id => !sel[id]);
+    // проверка правила: у снятой подписи нет места, где ей мешали бы только подписи с меньшим опозданием
+    const unfair = lost.filter(id => byId[id].D.some(c => Object.keys(sel).every(u => pairOk(c, sel[u]) || byId[u].prio < byId[id].prio)));
+    return { placed, dropped: lost, unfair, ms: performance.now() - t0 };
+  }
   items = items.filter(t => t.D.length);
 
-  while (true) {
+  let start = {};   // места с прошлого круга: поиск продолжается с них, а не с нуля
+  for (let round = 0; ; round++) {
     const n = items.length;
-    if (!n) return { placed: {}, dropped, ms: performance.now() - t0 };
-    const cur = new Array(n).fill(0);
+    if (!n) return finish({});
+    const cur = items.map(t => start[t.id] || 0);
     const cnt = items.map(t => new Int16Array(t.D.length));
     const apply = (u, ci, s) => {
       const cu = items[u].D[ci];
@@ -110,9 +139,9 @@ export function layoutLabels({ dots, want, fixed = [], topLimit = 12, seed = 1, 
         for (let i = 0; i < D.length; i++) if (!pairOk(cu, D[i])) row[i] += s;
       }
     };
-    for (let u = 0; u < n; u++) apply(u, 0, 1);
+    for (let u = 0; u < n; u++) apply(u, cur[u], 1);
     let best = null, firstAt = null;
-    const roundBudget = performance.now() - t0 > budgetMs ? 400 : budgetMs / 2;
+    const roundBudget = round ? 250 : budgetMs / 2;
     const roundStart = performance.now();
     for (let step = 0; ; step++) {
       const now = performance.now();
@@ -141,16 +170,18 @@ export function layoutLabels({ dots, want, fixed = [], topLimit = 12, seed = 1, 
       if (ni !== cur[t]) { apply(t, cur[t], -1); cur[t] = ni; apply(t, ni, 1); }
     }
     if (best) {
-      const placed = {};
-      items.forEach((t, i) => { placed[t.id] = { r: t.D[best.cur[i]].r, l: t.D[best.cur[i]].l }; });
-      return { placed, dropped, ms: performance.now() - t0 };
+      const sel = {};
+      items.forEach((t, i) => { sel[t.id] = t.D[best.cur[i]]; });
+      return finish(sel);
     }
-    // не разложилось: снять подпись самого младшего из конфликтных
-    const conflicted = items.filter((t, i) => cnt[i][cur[i]] > 0);
-    conflicted.sort((a, b) => a.prio - b.prio);
-    const victim = conflicted[0].id;
-    dropped.push(victim);
-    items = items.filter(t => t.id !== victim);
+    // не разложилось: снять подписи младших из конфликтных – треть за круг; когда время вышло,
+    // снимаются все конфликтные, и оставшиеся подписи уже стоят без конфликтов
+    const conflicted = items.filter((t, i) => cnt[i][cur[i]] > 0).sort((a, b) => a.prio - b.prio);
+    const over = performance.now() - t0 > budgetMs;
+    const victims = new Set(conflicted.slice(0, over ? conflicted.length : Math.ceil(conflicted.length / 3)).map(t => t.id));
+    items.forEach((t, i) => { start[t.id] = cur[i]; });
+    dropped.push(...victims);
+    items = items.filter(t => !victims.has(t.id));
   }
 }
 
