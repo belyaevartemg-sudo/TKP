@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ТКП ситуационного центра&nbsp;– демо</title>
+<meta name="description" content="Табло коллективного пользования ситуационного центра железной дороги: макет, который сам пересчитывается и раскладывает подписи при любых данных смены.">
+<meta property="og:title" content="ТКП ситуационного центра – демо">
+<meta property="og:description" content="Табло 5400×2500 собирается из данных смены: счётчики, колонки полигонов, карта и подписи поездов.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=block" rel="stylesheet">
+<link rel="stylesheet" href="css/board.css">
+</head>
+<body>
+<header class="bar">
+  <h1>ТКП ситуационного центра <span>· живой макет</span></h1>
+  <div class="btns" role="group" aria-label="Управление">
+    <button class="btn" id="rand" type="button">Случайная смена <kbd>R</kbd></button>
+    <button class="btn" id="ns" type="button" aria-pressed="false">Нештатная ситуация <kbd>N</kbd></button>
+    <button class="btn" id="sample" type="button">Как в&nbsp;макете <kbd>M</kbd></button>
+    <button class="btn" id="full" type="button">На&nbsp;весь экран <kbd>F</kbd></button>
+  </div>
+</header>
+<p class="stat" id="stat" aria-live="polite">Загрузка…</p>
+<main class="stage">
+  <div class="board-wrap" id="wrap"><div class="board" id="board"></div></div>
+</main>
+<section class="foot">
+  <h2>Что здесь происходит</h2>
+  <p>Табло собирается из&nbsp;одного списка опаздывающих поездов. Счётчики «Опоздания», колонки полигонов, значки и&nbsp;подписи на&nbsp;карте считаются из&nbsp;него заново при&nbsp;каждой смене данных.</p>
+  <p>Подписи поездов раскладываются автоматически: в&nbsp;два этажа (номер над&nbsp;опозданием), в&nbsp;общей сетке рядов над&nbsp;или&nbsp;под&nbsp;своим поездом, без&nbsp;перекрытий и&nbsp;пересечений выносок. Если подпись не&nbsp;помещается, на&nbsp;карте остаётся значок, а&nbsp;поезд всё равно есть в&nbsp;колонке своего полигона.</p>
+  <p>В&nbsp;режиме «Нештатная ситуация» один из&nbsp;поездов становится НС: карточка сверху и&nbsp;справа, ореол на&nbsp;карте, жёлтые подписи временно скрыты.</p>
+  <details>
+    <summary>Свои данные</summary>
+    <p>Поправьте список поездов или&nbsp;другие поля и&nbsp;нажмите «Показать». Станция должна быть из&nbsp;каталога ниже.</p>
+    <textarea id="json" spellcheck="false" aria-label="Данные смены в формате JSON"></textarea>
+    <p><button class="btn" id="apply" type="button">Показать</button></p>
+    <p class="err" id="err" hidden></p>
+    <p><b>Каталог станций:</b> <span id="stations"></span></p>
+  </details>
+  <h2>Источник</h2>
+  <p>Макет&nbsp;– Figma, вариант В&nbsp;(штатный режим) и&nbsp;Г (НС). Карта&nbsp;– Natural Earth (общественное достояние), коническая проекция Ламберта. Данные смены условные.</p>
+</section>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
