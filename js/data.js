@@ -35,7 +35,7 @@ export const SAMPLE = {
     transitDelta: "+5 %", intl: 15, foreign: 11 },
   side: {
     "Окт": { events: [{ head: ["Окно (путь)", "20:00–23:00"], where: "Тверь – Бологое" }], weather: [] },
-    "Моск": { events: [], weather: [] },
+    "Моск": { events: [{ type: "fail", head: ["Отказ СЦБ", "с 19:12"], where: "Луховицы – Рыбное" }], weather: [] },
     "Ю-З": { events: [{ head: ["Предупреждение", "60 км/ч"], where: "Ростов – Батайск" }],
              weather: [{ city: "Ростов-на-Дону", t: -5, sky: "ясно", local: "19:34" }] },
     "С-З": { events: [], weather: [{ city: "Новосибирск", t: -19, sky: "снег", local: "23:34" }] },
@@ -79,6 +79,13 @@ const CITIES = {
 const SKIES = ["ясно", "снег", "облачно", "метель", "туман"];
 const NS_KINDS = [["Биоугроза", true], ["Задымление", true], ["Пострадавший пассажир", true],
                   ["Отказ локомотива", false], ["Сход колёсной пары", true]];
+// отказы инфраструктуры: вид и где (перегон) – по полигонам
+const FAIL_KINDS = ["Отказ СЦБ", "Отказ КС", "Отказ пути"];
+const FAIL_WHERE = {
+  "Окт": ["Малая Вишера – Чудово", "Бологое – Угловка"], "Моск": ["Луховицы – Рыбное", "Серпухов – Тарусская"],
+  "Ю-З": ["Лиски – Россошь", "Батайск – Каневская"], "С-З": ["Ишим – Называевская", "Курган – Петухово"],
+  "Вост": ["Зима – Куйтун", "Слюдянка – Култук"],
+};
 const TRANSIT = { "Окт": [40, 80], "Моск": [50, 95], "Ю-З": [90, 150], "С-З": [110, 170], "Вост": [70, 115] };
 
 export function generate(seed, stations, { heavy = false } = {}) {
@@ -107,7 +114,7 @@ export function generate(seed, stations, { heavy = false } = {}) {
     do id = `Т-${speed ? int(700, 799) : int(100, 699)}`; while (used.has(id));
     used.add(id);
     const q = r();
-    const delay = speed ? int(3, 55) : q < 0.80 ? int(3, 59) : q < 0.94 ? int(60, 239) : int(241, 420);
+    const delay = speed ? int(6, 55) : q < 0.80 ? int(6, 59) : q < 0.94 ? int(60, 239) : int(241, 420);
     trains.push({ id, speed, delay, station: st.name });
   }
   const stale = trains.length && r() < 0.5 ? { train: pick(trains).id, time: hm(now - int(6, 25)) } : null;
@@ -123,6 +130,11 @@ export function generate(seed, stations, { heavy = false } = {}) {
     const cities = [...CITIES[p]].sort(() => r() - 0.5).slice(0, int(0, Math.min(2, CITIES[p].length)));
     const weather = cities.map(([city, dz, lo, hi]) => ({ city, t: int(lo, hi), sky: pick(SKIES), local: hm(now + dz * 60) }));
     side[p] = { events, weather };
+  }
+  // иногда – отказ инфраструктуры (без НС: жёлтый квадрат в карточке полигона)
+  if (r() < 0.45) {
+    const p = pick(POLYS);
+    side[p].events.unshift({ type: "fail", head: [pick(FAIL_KINDS), `с ${hm(now - int(5, 70))}`], where: pick(FAIL_WHERE[p]) });
   }
   const plan = int(150, 240);
   const summary = { sent: int(Math.round(plan * 0.3), plan), plan, delayedDep: int(0, 6), control: [int(5, 14), int(0, 8)],
@@ -141,6 +153,18 @@ export function generate(seed, stations, { heavy = false } = {}) {
     if (nsTrains.every(u => Math.hypot(xy[u.station].x - p.x, xy[u.station].y - p.y) >= 300)) nsTrains.push(t);
   }
   const ns = nsTrains.map(base => {
+    // НС из-за отказа: поезд с людьми стоит на перегоне (правило «отказ → НС»); отказ попадает в карточку полигона
+    if (r() < 0.35) {
+      const fk = pick(FAIL_KINDS), st = xy[base.station], pax = int(300, 980), mins = base.delay, start = now - mins;
+      const p = st.poly;
+      if (side[p]) side[p].events.unshift({ type: "fail", head: [fk, `с ${hm(start)}`], where: `у ст. ${st.short}`, train: base.id });
+      const crew = { "Отказ СЦБ": "бригада СЦБ", "Отказ КС": "бригада контактной сети", "Отказ пути": "бригада пути" }[fk];
+      return { train: base.id, kind: `${fk} · стоит на перегоне`, since: hm(start), mins,
+        facts: [["Стоит на перегоне"], ["Задержка ", `${mins} мин`, "amber"], ["Новое время – уточняется"],
+                [`${pax} ${plural(pax, "пассажир", "пассажира", "пассажиров")} в поезде`]],
+        log: [[hm(start + 2), "ведёт руководитель смены"], [hm(start + Math.max(4, Math.min(mins - 2, 8))), `выехала ${crew}`],
+              [hm(now + int(5, 20)), "решение о пропуске", "next"]] };
+    }
     const [kind, car] = pick(NS_KINDS);
     const carN = int(2, 14), pax = int(300, 980), inCar = int(30, 90), tr = int(1, 6);
     const mins = base.delay, start = now - mins;

@@ -2,6 +2,7 @@
 import { SAMPLE, generate, plural, POLY_FULL } from "./data.js";
 import { renderBoard } from "./board.js";
 import { loadGeo, placeStation } from "./geo.js";
+import { publishShift, readShift, onShift, onTheme } from "./shift.js";
 
 const $ = s => document.querySelector(s);
 const wrap = $("#wrap"), board = $("#board"), stat = $("#stat"), ta = $("#json"), err = $("#err");
@@ -10,6 +11,19 @@ const MODES = ["norm", "ns", "multi"], MODE_TXT = { norm: "НС: нет", ns: "�
 let state = { source: params.get("seed") ? "seed" : "sample", seed: +params.get("seed") || 0, heavy: params.get("load") === "heavy",
   mode: MODES.includes(params.get("mode")) ? params.get("mode") : "norm", data: null, added: [] };
 let stations = [];
+
+// тема: тёмная (как ТКП в зале) или светлая; из адреса, иначе – последняя выбранная
+const THEMES = { dark: "Тема: тёмная", light: "Тема: светлая" };
+const lsGet = k => { try { return localStorage.getItem(k); } catch { return null; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
+let theme = params.get("theme") === "light" || (!params.get("theme") && lsGet("tkp-theme") === "light") ? "light" : "dark";
+function applyTheme() {
+  document.documentElement.dataset.theme = theme;
+  $("#theme-txt").textContent = THEMES[theme];
+  $("#theme").setAttribute("aria-pressed", theme === "light");
+  board.querySelectorAll(".map-base").forEach(i => { i.src = `assets/${theme === "light" ? "base_map_light" : "base_map"}.svg`; });
+}
+applyTheme();
 
 // ширина подписи: по тексту (Inter 600 75px) + поля 16+16, не уже 252 как в макете
 const ctx = document.createElement("canvas").getContext("2d");
@@ -23,7 +37,8 @@ function labelWidth(t) {
 function fit() { board.style.transform = `scale(${wrap.clientWidth / 5400})`; }
 new ResizeObserver(fit).observe(wrap);
 
-function draw() {
+// quiet – смену прислало другое окно (РМ): перерисовать, но обратно не записывать
+function draw(quiet = false) {
   const st = renderBoard(board, state.data, { mode: state.mode, stations, labelWidth, seed: state.seed || 1 });
   const src = (state.source === "sample" ? "смена из макета" : state.source === "seed" ? `${state.heavy ? "загруженная" : "случайная"} смена №${state.seed}` : "свои данные") +
     (state.added.length ? ` + ${state.added.length} ${plural(state.added.length, "поезд добавлен", "поезда добавлено", "поездов добавлено")}` : "");
@@ -38,10 +53,12 @@ function draw() {
   if (state.source === "seed") q.set("seed", state.seed);
   if (state.source === "seed" && state.heavy) q.set("load", "heavy");
   if (state.mode !== "norm") q.set("mode", state.mode);
+  if (theme === "light") q.set("theme", "light");
   history.replaceState(null, "", q.toString() ? "?" + q : location.pathname);
   ta.value = JSON.stringify(state.data, null, 1);
   window.__last = st; window.__data = state.data;
   renderChips();
+  if (!quiet) publishShift(state);
   return st;
 }
 
@@ -137,7 +154,7 @@ $("#add").addEventListener("submit", e => {
 });
 $("#a-rand").onclick = () => {
   const s = stations[Math.floor(Math.random() * stations.length)], speed = Math.random() < 0.15, q = Math.random();
-  const delay = speed ? 3 + Math.floor(Math.random() * 53) : q < 0.75 ? 3 + Math.floor(Math.random() * 57) : q < 0.92 ? 60 + Math.floor(Math.random() * 180) : 241 + Math.floor(Math.random() * 180);
+  const delay = speed ? 6 + Math.floor(Math.random() * 50) : q < 0.75 ? 6 + Math.floor(Math.random() * 54) : q < 0.92 ? 60 + Math.floor(Math.random() * 180) : 241 + Math.floor(Math.random() * 180);
   addTrain({ id: freeId(speed), speed, delay, station: s.name });
 };
 function renderChips() {
@@ -153,6 +170,13 @@ $("#a-list").addEventListener("click", e => {
   state.added = state.added.filter(x => x !== id);
   draw(); msg(`Убран ${id}.`);
 });
+
+$("#theme").onclick = () => {
+  theme = theme === "light" ? "dark" : "light"; lsSet("tkp-theme", theme); applyTheme();
+  const q = new URLSearchParams(location.search);
+  if (theme === "light") q.set("theme", "light"); else q.delete("theme");
+  history.replaceState(null, "", q.toString() ? "?" + q : location.pathname);
+};
 
 function togglePresent() {
   document.body.classList.toggle("present");
@@ -170,6 +194,7 @@ document.addEventListener("keydown", e => {
   else if (k === "m" || k === "ь") $("#sample").click();
   else if (k === "f" || k === "а") togglePresent();
   else if (k === "t" || k === "е") $("#a-rand").click();
+  else if (k === "l" || k === "д") $("#theme").click();
 });
 
 // для проверок: window.__show(seed, mode, heavy)
@@ -177,10 +202,19 @@ window.__show = (seed, mode = "norm", heavy = false) => { state.mode = mode; sta
 
 (async () => {
   await loadGeo();
-  stations = (await (await fetch("data/stations.json")).json()).map(placeStation);
+  stations = (window.TKP_DATA?.stations || await (await fetch("data/stations.json")).json()).map(placeStation);
   $("#stations").textContent = stations.map(s => s.name).join(", ");
   $("#st-list").innerHTML = stations.map(s => `<option value="${s.name}"></option>`).join("");
   await document.fonts.load("600 75px Inter"); await document.fonts.ready;
   fit();
-  load(state.source, state.seed);
+  // смена из другого окна (РМ или прошлое ТКП), если в адресе не задана своя
+  const stored = !params.get("seed") && !params.has("sample") ? readShift() : null;
+  if (stored) adopt(stored, true); else load(state.source, state.seed);
+  onShift(v => adopt(v, true));
+  onTheme(t => { theme = t === "light" ? "light" : "dark"; applyTheme(); });
 })();
+function adopt(v, quiet) {
+  state.source = v.source; state.seed = v.seed || 0; state.heavy = !!v.heavy; state.mode = MODES.includes(v.mode) ? v.mode : "norm";
+  state.data = v.data; state.added = v.added || [];
+  draw(quiet);
+}

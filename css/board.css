@@ -1,9 +1,27 @@
 [hidden]{display:none!important}
 :root{
   --bg:#0e1116; --panel:#161b22; --line:#1f2630; --line2:#2b3440;
-  --text:#e8edf2; --sec:#a9b3bf; --mut:#6e7886;
-  --amb:#f2b233; --red:#ff4040; --rbg:#1a0507; --green:#3ccb7f; --orange:#ff7a1a;
+  --text:#e8edf2; --sec:#a9b3bf; --mut:#838d9a;
+  --amb:#f2b233; --red:#ff4d4d; --rbg:#1a0507; --green:#3ccb7f; --orange:#ff7a1a;
+  /* значки (заливка и знак) отдельно от текста: в светлой теме текст темнее, чем заливка значка */
+  --amb-mk:#f2b233; --red-mk:#ff4040; --green-mk:#3ccb7f; --orange-mk:#ff7a1a;
+  --glyph-a:#0e1116; --glyph-r:#1a0507; --glyph-g:#0e1116; --on-amb:#0e1116;
+  --ns-bg:#5a0f14; --pressed:#2a1013; --pressed-fg:#fff;
+  --lbl-bg:rgba(14,17,22,.85); --lbl-ns-bg:rgba(26,5,7,.95);
+  --ring:none; --ring-shadow:none;
   color-scheme:dark;
+}
+/* светлая тема – палитра светлых ТКП и РМ в Figma (контраст текста ≥ 4,5:1, значков ≥ 3:1) */
+:root[data-theme="light"]{
+  --bg:#f3f5f7; --panel:#ffffff; --line:#e4e8ed; --line2:#d3d9e0;
+  --text:#14181e; --sec:#4a5562; --mut:#5c6672;
+  --amb:#8a5600; --red:#c62828; --rbg:#fde7e7; --green:#15703f; --orange:#a84300;
+  --amb-mk:#c48600; --red-mk:#d92d2d; --green-mk:#178a4c; --orange-mk:#c85000;
+  --glyph-a:#fff; --glyph-r:#fff; --glyph-g:#fff; --on-amb:#fff;
+  --ns-bg:#c62828; --pressed:#fde7e7; --pressed-fg:#14181e;
+  --lbl-bg:rgba(243,245,247,.88); --lbl-ns-bg:rgba(253,231,231,.95);
+  --ring:#fff; --ring-shadow:0 0 0 6px #fff;
+  color-scheme:light;
 }
 *{box-sizing:border-box;margin:0}
 html{background:var(--bg)}
@@ -18,7 +36,7 @@ body{background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-ser
 .btn{font:500 15px/1 Inter,system-ui,sans-serif;color:var(--text);background:var(--panel);border:1px solid var(--line2);
   border-radius:8px;padding:11px 14px;cursor:pointer;min-height:44px;display:inline-flex;gap:8px;align-items:center}
 .btn:hover{border-color:var(--sec)}
-.btn[aria-pressed="true"]{background:#2a1013;border-color:var(--red);color:#fff}
+.btn[aria-pressed="true"]{background:var(--pressed);border-color:var(--red);color:var(--pressed-fg)}
 .btn kbd{font:inherit;font-size:12px;color:var(--mut);border:1px solid var(--line2);border-radius:4px;padding:2px 5px}
 .btn:focus-visible,summary:focus-visible,textarea:focus-visible{outline:3px solid var(--amb);outline-offset:2px}
 .add{display:flex;flex-wrap:wrap;gap:10px 12px;align-items:flex-end;padding:12px 16px 0}
@@ -31,7 +49,7 @@ body{background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-ser
 .f input[aria-invalid="true"]{border-color:var(--red)}
 .chk{display:flex;align-items:center;gap:8px;min-height:44px;font-size:15px;color:var(--text);cursor:pointer}
 .chk input{width:24px;height:24px;accent-color:var(--amb)}
-.btn-acc{background:var(--amb);color:var(--bg);border-color:var(--amb);font-weight:600}
+.btn-acc{background:var(--amb);color:var(--on-amb);border-color:var(--amb);font-weight:600}
 .btn-acc:hover{border-color:#fff}
 .add-msg{flex-basis:100%;font-size:14px;color:var(--sec);min-height:20px}
 .add-msg.bad{color:var(--red)} .add-msg b{color:var(--text);font-weight:600}
@@ -42,8 +60,8 @@ body{background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-ser
 .chip button:hover{color:var(--text);background:var(--line2)}
 .chip button:focus-visible{outline:2px solid var(--amb)}
 body.present .add{display:none}
-@keyframes flash{0%,100%{outline-color:rgba(242,178,51,0)}30%,70%{outline-color:rgba(242,178,51,1)}}
-.board .flash{outline:14px solid rgba(242,178,51,0);outline-offset:14px;border-radius:16px;animation:flash 1.2s ease-in-out 2}
+@keyframes flash{0%,100%{outline-color:transparent}30%,70%{outline-color:var(--amb-mk)}}
+.board .flash{outline:14px solid transparent;outline-offset:14px;border-radius:16px;animation:flash 1.2s ease-in-out 2}
 @media (prefers-reduced-motion:reduce){.board .flash{animation:none;outline-color:var(--amb)}}
 .stat{font-size:14px;color:var(--sec);padding:8px 16px 0;min-height:30px;font-variant-numeric:tabular-nums}
 .stat b{color:var(--text);font-weight:600}
@@ -69,20 +87,28 @@ body.present .board-wrap{border-radius:0}
 .z{position:absolute;background:var(--panel);border-radius:20px;overflow:hidden}
 .row{display:flex;align-items:center}
 .mk{flex:none;display:block}
-.mk-r{display:inline-flex;align-items:center;justify-content:center;background:var(--red);color:var(--rbg);font-weight:700;line-height:1}
+.mk-r{display:inline-flex;align-items:center;justify-content:center;background:var(--red-mk);color:var(--glyph-r);font-weight:700;line-height:1}
+.mk .b-a{fill:var(--amb-mk)} .mk .g-a{fill:var(--glyph-a)} .mk .b-g{fill:var(--green-mk)} .mk .g-g{stroke:var(--glyph-g)} .mk .b-o{fill:var(--orange-mk)}
+svg.mk{overflow:visible}
+/* светлая тема: значки на карте – с белой обводкой, иначе жёлтый к заливке полигона ниже 3:1 */
+.map-mk .b-a{stroke:var(--ring);stroke-width:7;stroke-linejoin:round;paint-order:stroke}
+span.map-mk.mk-r{box-shadow:var(--ring-shadow)}
+:root[data-theme="light"] .z2-ns .mk-r{background:#fff;color:var(--ns-bg)}
+#theme[aria-pressed="true"]{background:var(--panel);border-color:var(--line2);color:var(--text)}
 .amb{color:var(--amb)} .red{color:var(--red)} .sec{color:var(--sec)} .mut{color:var(--mut)} .sb{font-weight:600}
 
 .z1{left:3240px;top:0;width:2160px;height:238px;background:var(--line);border-radius:0}
-.z1-in{position:absolute;left:60px;top:28px;display:flex;gap:40px;align-items:center}
+/* как в Figma (Z1 В/Г): «Обновлено» прижато к правому краю (поле 28) и стоит по верхней строке даты */
+.z1-in{position:absolute;left:82px;right:28px;top:28px;display:flex;gap:60px;align-items:center}
 .z1-time{font-size:120px;font-weight:700;line-height:144px}
 .z1-date{font-size:76px;font-weight:500;line-height:91px;color:var(--sec)}
-.z1-fresh{display:flex;flex-direction:column;align-items:flex-end;font-size:76px;font-weight:500;line-height:91px}
+.z1-fresh{margin-left:auto;align-self:flex-start;display:flex;flex-direction:column;align-items:flex-end;font-size:76px;font-weight:500;line-height:91px}
 .z1-fresh .row{gap:14px}
 .stale{color:var(--orange)}
 
 .z2{left:856px;top:12px;width:2360px;height:112px;z-index:2}
 .z2-ok{position:absolute;left:40px;top:11px;gap:18px;font-size:75px;font-weight:600;line-height:90px}
-.z2-ns{height:300px;background:#5a0f14;box-shadow:inset 0 0 0 8px var(--red);color:#fff}
+.z2-ns{height:300px;background:var(--ns-bg);box-shadow:inset 0 0 0 8px var(--red-mk);color:#fff}
 .z2-ns>.mk-r{position:absolute;left:56px;top:70px}
 .ns-title,.ns-min{position:absolute;top:21px;font-size:96px;font-weight:700;line-height:110px}
 .ns-sub,.ns-min-sub{position:absolute;top:167px;font-size:75px;line-height:86px}
@@ -98,9 +124,9 @@ body.present .board-wrap{border-radius:0}
 .z4{left:856px;top:148px;width:2360px;height:1410px}
 .map-base,.map-svg{position:absolute;left:0;top:0;width:2360px;height:1410px}
 .map-mk{position:absolute}
-.lbl{position:absolute;height:180px;padding:4px 16px;background:rgba(14,17,22,.85);border-radius:12px;display:flex;flex-direction:column;
+.lbl{position:absolute;height:180px;padding:4px 16px;background:var(--lbl-bg);border-radius:12px;display:flex;flex-direction:column;
   justify-content:center;font-size:75px;font-weight:600;line-height:1.15;overflow:hidden}
-.lbl-ns{width:390px;height:100px;flex-direction:row;align-items:center;gap:22px;background:rgba(26,5,7,.95);box-shadow:inset 0 0 0 5px var(--red)}
+.lbl-ns{width:390px;height:100px;flex-direction:row;align-items:center;gap:22px;background:var(--lbl-ns-bg);box-shadow:inset 0 0 0 5px var(--red-mk)}
 
 .z5{left:3240px;top:656px;width:1304px;height:906px;padding:2px 44px;font-size:73px;line-height:88px}
 .z5 hr{border:0;height:3px;background:var(--line2);margin:0}
@@ -110,7 +136,7 @@ body.present .board-wrap{border-radius:0}
 .z5 .kv b.amb{color:var(--amb)}
 .z5 .sub{color:var(--sec)}
 .z5 .sub:last-child{padding-bottom:4px}
-.z5-ns{padding:74px 44px;box-shadow:inset 0 0 0 8px var(--red);color:var(--text);display:flex;flex-direction:column;gap:14px}
+.z5-ns{padding:74px 44px;box-shadow:inset 0 0 0 8px var(--red-mk);color:var(--text);display:flex;flex-direction:column;gap:14px}
 .z5-ns hr{background:var(--line);margin:20px 0}
 .z5-ns .log{display:flex;gap:20px} .z5-ns .log .t{width:200px;color:var(--sec);font-weight:500}
 .z5-ns .log.next{font-weight:600} .z5-ns .log.next .t{color:var(--amb);font-weight:600}
@@ -130,6 +156,8 @@ body.present .board-wrap{border-radius:0}
 .card .name{font-weight:600}
 .card .ev{display:flex;gap:14px;align-items:flex-start;color:var(--amb);font-weight:500}
 .card .ev .mk{margin-top:16px}
+.card .ev.red{color:var(--red)}
+.mk-q{background:var(--amb-mk);color:var(--glyph-a)}
 
 /* несколько НС */
 .z2-multi{padding:12px 44px}
@@ -141,7 +169,7 @@ body.present .board-wrap{border-radius:0}
 .ns-head{display:flex;justify-content:space-between;font-weight:700}
 
 /* группа поездов на карте: плашка с числом (красные + жёлтые) */
-.grp{height:72.8px;border-radius:14px;background:var(--bg);box-shadow:inset 0 0 0 6px var(--amb);display:flex;align-items:center;
+.grp{height:72.8px;border-radius:14px;background:var(--bg);box-shadow:inset 0 0 0 6px var(--amb-mk);display:flex;align-items:center;
   justify-content:center;gap:2px;font-size:52px;font-weight:700;line-height:1}
-.grp-r{box-shadow:inset 0 0 0 6px var(--red)}
+.grp-r{box-shadow:inset 0 0 0 6px var(--red-mk)}
 .grp i{font-style:normal;color:var(--sec);font-weight:600}

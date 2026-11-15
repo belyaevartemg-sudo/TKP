@@ -3,7 +3,8 @@
 let G = null, ctx = null, paths = null;
 
 export async function loadGeo(url = "data/geo.json") {
-  G = await (await fetch(url)).json();
+  // data/data.js (сборка) кладёт данные в window.TKP_DATA – так страница работает и с file:///
+  G = window.TKP_DATA?.geo || await (await fetch(url)).json();
   ctx = document.createElement("canvas").getContext("2d");
   paths = Object.entries(G.polys).map(([p, d]) => [p, new Path2D(d)]);
 }

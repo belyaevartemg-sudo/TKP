@@ -12,10 +12,12 @@ const isNs = (t, nsl) => nsl.some(n => n.train === t.id);
 const isRed = (t, nsl) => t.delay > RED_MIN || isNs(t, nsl);
 
 const mk = {
-  a: s => `<img class="mk" src="assets/mk-a${s === 73 ? 73 : s === 64 ? 64 : s === 56 ? 56 : 60}.svg" width="${s}" height="${s}" alt="">`,
-  g: s => `<img class="mk" src="assets/mk-g${s === 64 ? 64 : s === 56 ? 56 : 60}.svg" width="${s}" height="${s}" alt="">`,
-  o: s => `<img class="mk" src="assets/mk-o60.svg" width="${s}" height="${s}" alt="">`,
+  a: (s, cls = "", st = "") => `<svg class="mk${cls}" width="${s}" height="${s}" viewBox="0 0 60 60" aria-hidden="true"${st}><path class="b-a" d="M30 8L55.98 53H4.02Z"/><rect class="g-a" x="27" y="23" width="6" height="15" rx="3"/><circle class="g-a" cx="30" cy="45" r="3"/></svg>`,
+  g: s => `<svg class="mk" width="${s}" height="${s}" viewBox="0 0 60 60" aria-hidden="true"><rect class="b-g" width="60" height="60" rx="30"/><path class="g-g" d="M16.2 31.2L26.4 40.8L44.4 20.4" fill="none" stroke-width="6.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  o: s => `<svg class="mk" width="${s}" height="${s}" viewBox="0 0 60 60" aria-hidden="true"><path class="b-o" d="M30 0L60 30L30 60L0 30Z"/></svg>`,
   r: s => `<span class="mk mk-r" style="width:${s}px;height:${s}px;border-radius:${s * 0.14}px;font-size:${s * 0.78}px">!</span>`,
+  // отказ инфраструктуры: жёлтый квадрат «!» (треугольник – окна и предупреждения)
+  q: s => `<span class="mk mk-r mk-q" style="width:${s}px;height:${s}px;border-radius:${s * 0.14}px;font-size:${s * 0.78}px">!</span>`,
 };
 
 function z1(d) {
@@ -31,7 +33,7 @@ function z1(d) {
 }
 
 function z2(d, nsl, stOf) {
-  if (!nsl.length) return `<section class="z z2" aria-label="Статус"><p class="row z2-ok">${mk.g(64)}<span>Нештатных ситуаций и отказов нет</span></p></section>`;
+  if (!nsl.length) return `<section class="z z2" aria-label="Статус"><p class="row z2-ok">${mk.g(64)}<span>Нештатных ситуаций нет</span></p></section>`;
   if (nsl.length === 1) {
     const ns = nsl[0];
     return `<section class="z z2 z2-ns" aria-label="Нештатная ситуация">
@@ -112,10 +114,16 @@ function z6(d, nsl, byPoly, stOf) {
   }).join("");
 }
 
-function side(d, polys, cls) {
+function side(d, nsl, polys, cls) {
   return `<section class="z ${cls}" aria-label="Полигоны">${polys.map(p => {
     const s = d.side[p] || { events: [], weather: [] };
-    const ev = s.events.map(e => `<div class="ev">${mk.a(60)}<p>${esc(e.head[0])}<br>${esc(e.head[1])}</p></div><p>${esc(e.where)}</p>`).join("");
+    // отказ – жёлтый квадрат; отказ, остановивший поезд из показанных НС, – красный «НС · отказ …» (правило «отказ → НС»)
+    const evs = [...s.events].sort((a, b) => (b.type === "fail") - (a.type === "fail"));
+    const ev = evs.map(e => {
+      if (e.type !== "fail") return `<div class="ev">${mk.a(60)}<p>${esc(e.head[0])}<br>${esc(e.head[1])}</p></div><p>${esc(e.where)}</p>`;
+      const ns = e.train && nsl.some(n => n.train === e.train);
+      return `<div class="ev${ns ? " red" : ""}">${ns ? mk.r(60) : mk.q(60)}<p>${ns ? "НС · " + esc(e.head[0].replace(/^Отказ/, "отказ")) : esc(e.head[0])}<br>${esc(e.head[1])}</p></div><p>${esc(e.where)}</p>`;
+    }).join("");
     const empty = !s.events.length && !s.weather.length ? `<p class="sec">без окон и предупреждений</p>` : "";
     const w = s.weather.map(x => `<div class="wx"><p>${esc(x.city)} ${x.t < 0 ? "−" : x.t > 0 ? "+" : ""}${Math.abs(x.t)} °C</p><p class="sec">${esc(x.sky)} · ${esc(x.local)} местн.</p></div>`).join("");
     return `<div class="card"><p class="name">${POLY_FULL[p]}</p>${ev}${empty}${w}</div>`;
@@ -147,9 +155,9 @@ export function mapLayers(d, nsl, stOf, opts) {
     const pick = opts4.reduce((a, o) => score(o) < score(a) ? o : a);
     const ly = pick[1], lx = Math.min(Math.max(pick[0], 8), LABEL.W_MAP - W - 8);
     fixed.push([lx, ly, lx + W, ly + H]);
-    nsSvg += `<circle cx="${h.x}" cy="${h.y}" r="${h.R}" fill="none" stroke="#ff4040" stroke-opacity=".45" stroke-width="6"/>
-      <circle cx="${h.x}" cy="${h.y}" r="${h.r}" fill="#ff4040" fill-opacity=".22" stroke="#ff4040" stroke-opacity=".85" stroke-width="${i ? 8 : 10}"/>
-      <line x1="${pick[2]}" y1="${pick[3]}" x2="${pick[4]}" y2="${pick[5]}" stroke="#ff4040" stroke-width="6"/>`;
+    nsSvg += `<circle cx="${h.x}" cy="${h.y}" r="${h.R}" fill="none" style="stroke:var(--red-mk)" stroke-opacity=".45" stroke-width="6"/>
+      <circle cx="${h.x}" cy="${h.y}" r="${h.r}" style="fill:var(--red-mk);stroke:var(--red-mk)" fill-opacity=".22" stroke-opacity=".85" stroke-width="${i ? 8 : 10}"/>
+      <line x1="${pick[2]}" y1="${pick[3]}" x2="${pick[4]}" y2="${pick[5]}" style="stroke:var(--red-mk)" stroke-width="6"/>`;
     const m = 102 * h.s;
     nsHtml += `<div class="lbl lbl-ns" style="left:${lx}px;top:${ly}px"><span>${esc(nm(t))}</span><span class="red">НС</span></div>
       <span class="mk mk-r map-mk" style="left:${h.x - m / 2}px;top:${h.y - m / 2}px;width:${m}px;height:${m}px;border-radius:${m * 0.14}px;font-size:${m * 0.69}px">!</span>`;
@@ -181,14 +189,14 @@ export function mapLayers(d, nsl, stOf, opts) {
       const num = g.red && g.amb ? `<b class="red">${g.red}</b><i>+</i><b class="amb">${g.amb}</b>` : `<b class="${red ? "red" : "amb"}">${g.list.length}</b>`;
       marks += `<span data-g="${esc(g.id)}" class="map-mk grp${red ? " grp-r" : ""}" style="left:${x - g.w / 2}px;top:${y - 36.4}px;width:${g.w}px">${num}</span>`;
     } else marks += red ? `<span data-g="${esc(g.id)}" class="mk mk-r map-mk" style="left:${x - 36.4}px;top:${y - 36.4}px;width:72.8px;height:72.8px;border-radius:10.2px;font-size:49.4px">!</span>`
-                 : `<img data-g="${esc(g.id)}" class="map-mk" src="assets/mk-a73.svg" width="72.8" height="72.8" alt="" style="left:${x - 36.4}px;top:${y - 36.6}px">`;
+                 : mk.a(72.8, " map-mk", ` data-g="${esc(g.id)}" style="left:${x - 36.4}px;top:${y - 36.6}px"`);
     const p = res.placed[g.id];
     if (!p) continue;
-    const c = red ? "#ff4040" : "#f2b233";
-    lines += `<line x1="${p.l[0]}" y1="${p.l[1]}" x2="${p.l[2]}" y2="${p.l[3]}" stroke="${c}" stroke-width="${red ? 6 : 4}"/>`;
+    const c = red ? "var(--red-mk)" : "var(--amb-mk)";
+    lines += `<line x1="${p.l[0]}" y1="${p.l[1]}" x2="${p.l[2]}" y2="${p.l[3]}" style="stroke:${c}" stroke-width="${red ? 6 : 4}"/>`;
     labels += `<div class="lbl" style="left:${p.r[0]}px;top:${p.r[1]}px;width:${p.r[2] - p.r[0]}px"><span>${esc(g.text)}</span><span class="${t.delay > RED_MIN ? "red" : "amb"}">${fmtDelay(t.delay)}</span></div>`;
   }
-  return { html: `<img class="map-base" src="assets/base_map.svg" width="2360" height="1410" alt="Карта сети: регионы закрашены по полигонам, линии – железные дороги">
+  return { html: `<img class="map-base" src="assets/${document.documentElement.dataset.theme === "light" ? "base_map_light" : "base_map"}.svg" width="2360" height="1410" alt="Карта сети: регионы закрашены по полигонам, линии – железные дороги">
     <svg class="map-svg" viewBox="0 0 2360 1410" aria-hidden="true">${nsSvg}${lines}</svg>${marks}${nsHtml}${labels}`,
     stats: { groupOf: Object.fromEntries(groups.flatMap(g => g.list.map(t => [t.id, g.id]))), groupSize: Object.fromEntries(groups.map(g => [g.id, g.list.length])),
       placedIds: Object.keys(res.placed), labeled: Object.keys(res.placed).length, marks: groups.length, grouped: groups.filter(g => g.list.length > 1).length, dropped: res.dropped, unfair: res.unfair || [], ms: Math.round(res.ms), total: d.trains.length } };
@@ -245,7 +253,7 @@ export function renderBoard(el, d, { mode, stations, labelWidth, seed }) {
   el.innerHTML = `${z1(d)}${z2(d, nsl, stOf)}${z3(d.trains)}
     <section class="z z4" aria-label="Карта опозданий">${map.html}</section>
     ${z5(d, nsl, stOf)}${z6(d, nsl, byPoly, stOf)}
-    ${side(d, ["Окт", "Моск", "Ю-З"], "z7")}${side(d, ["С-З", "Вост"], "z8")}`;
+    ${side(d, nsl, ["Окт", "Моск", "Ю-З"], "z7")}${side(d, nsl, ["С-З", "Вост"], "z8")}`;
   el.classList.toggle("is-ns", nsl.length > 0);
   fitZones(el);
   return { ...map.stats, ns: nsl.length };

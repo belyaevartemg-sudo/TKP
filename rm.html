@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>РМ мониторинга поездов&nbsp;– живой прототип</title>
+<meta name="description" content="Рабочее место «Мониторинг поездов полигона» ситуационного центра: таблица поездов, паспорт поезда, показатели полигона. Смена общая с табло ТКП.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=block" rel="stylesheet">
+<link rel="stylesheet" href="css/board.css">
+<link rel="stylesheet" href="css/rm.css">
+<script>try{var t=new URLSearchParams(location.search).get("theme")||localStorage.getItem("tkp-theme");if(t==="light")document.documentElement.dataset.theme="light"}catch(e){}</script>
+</head>
+<body class="rm-page">
+<header class="bar">
+  <h1>РМ «Мониторинг поездов» <span>· живой прототип</span></h1>
+  <div class="btns" role="group" aria-label="Управление сменой">
+    <button class="btn" id="rand" type="button">Случайная смена <kbd>R</kbd></button>
+    <button class="btn" id="heavy" type="button" aria-pressed="false">Загруженная смена <kbd>H</kbd></button>
+    <button class="btn" id="ns" type="button" aria-pressed="false"><span id="ns-txt">НС: нет</span> <kbd>N</kbd></button>
+    <button class="btn" id="sample" type="button">Как в&nbsp;макете <kbd>M</kbd></button>
+    <button class="btn" id="theme" type="button" aria-pressed="false"><span id="theme-txt">Тема: тёмная</span> <kbd>L</kbd></button>
+    <a class="btn" id="open-tkp" href="index.html" target="tkp">Открыть ТКП</a>
+    <button class="btn" id="full" type="button">На&nbsp;весь экран <kbd>F</kbd></button>
+  </div>
+</header>
+<p class="stat" id="stat" aria-live="polite">Загрузка…</p>
+<main class="stage">
+  <div class="board-wrap rm-wrap" id="wrap">
+    <div class="rm" id="rm">
+      <nav class="rm-top" aria-label="Рабочее место">
+        <span class="rm-top-l">Рабочее место:</span>
+        <a class="rm-tab on" data-role="trains" href="rm.html" aria-current="page">Мониторинг поездов</a>
+        <a class="rm-tab" data-role="crews" href="rm.html?role=crews">Бригады</a>
+        <a class="rm-tab" data-role="lead" href="rm.html?role=lead">Руководитель смены</a>
+        <a class="rm-tab" data-role="infra" href="rm.html?role=infra">Инфраструктура</a>
+        <a class="rm-tab" data-role="info" href="rm.html?role=info">Отправление и&nbsp;информирование</a>
+        <span class="rm-user">Петров А.&nbsp;С.</span>
+      </nav>
+      <section class="p rm-alarm" id="alarm" aria-live="polite"></section>
+      <section class="p rm-time" id="time" aria-label="Время и свежесть данных"></section>
+      <section class="p rm-list" aria-labelledby="list-h">
+        <div class="lh">
+          <h2 id="list-h">Поезда полигона · <span id="list-poly">Ю-З</span></h2>
+          <span class="sec" id="rows-info"></span>
+          <span class="chips-f" id="chips"></span>
+          <button type="button" class="link" id="reset">Сбросить</button>
+          <span class="sort-l">Сортировка:</span>
+          <div class="sort" role="group" aria-label="Сортировка" id="sort"></div>
+          <input id="q" type="search" placeholder="Поиск: номер, станция, маршрут" aria-label="Поиск по номеру, станции, маршруту" autocomplete="off">
+          <button type="button" class="pbtn" id="export">Выгрузить</button>
+        </div>
+        <div class="tbl" id="tbl" tabindex="-1">
+          <table>
+            <colgroup><col style="width:162px"><col style="width:170px"><col style="width:524px"><col style="width:283px"><col style="width:140px"><col style="width:339px"><col style="width:156px"><col style="width:180px"><col style="width:150px"><col style="width:70px"><col style="width:100px"><col style="width:366px"></colgroup>
+            <thead id="th"></thead>
+            <tbody id="tb"></tbody>
+          </table>
+        </div>
+        <p class="note">Минус&nbsp;– раньше графика; до&nbsp;+0:05 включительно&nbsp;– по&nbsp;графику.</p>
+      </section>
+      <section class="p rm-late" id="late" aria-label="Опоздания и показатели полигона"></section>
+      <div id="right"></div>
+      <div class="fmenu" id="fmenu" hidden role="dialog" aria-label="Фильтр колонки"></div>
+    </div>
+  </div>
+</main>
+<section class="foot">
+  <h2>Что здесь происходит</h2>
+  <p>Рабочее место оператора мониторинга поездов полигона Юго-Западный&nbsp;– перенос экрана 4080×1536 из&nbsp;Figma. Оно работает на&nbsp;той&nbsp;же смене, что и&nbsp;табло ТКП: откройте ТКП кнопкой выше, и&nbsp;оба окна будут показывать одно и&nbsp;то&nbsp;же. Новая смена, режим НС, тема, НС с&nbsp;рабочего места&nbsp;– меняются в&nbsp;обоих окнах сразу.</p>
+  <p>В&nbsp;таблице все поезда полигона в&nbsp;пути, а&nbsp;не&nbsp;только опаздывающие: опаздывающие берутся из&nbsp;смены ТКП, остальные достраиваются по&nbsp;графику до&nbsp;числа «в&nbsp;пути» на&nbsp;табло. Сортировка, поиск по&nbsp;номеру, станции и&nbsp;маршруту, фильтры в&nbsp;заголовках колонок (воронка), выгрузка списка в&nbsp;CSV. Фильтр «Полигон» задаёт, за&nbsp;какие полигоны отвечает оператор: их&nbsp;НС становятся своими (красная строка сверху), по&nbsp;ним считаются блоки справа.</p>
+  <p>Щелчок по&nbsp;строке (или стрелки ↑↓) открывает паспорт поезда на&nbsp;месте нижних блоков: «Общее», «Состав», «Техоперации» (клавиши 1–3). Закрывает его повторный щелчок по&nbsp;той&nbsp;же строке или Esc. Из&nbsp;паспорта поезд можно поставить на&nbsp;контроль и&nbsp;сообщить по&nbsp;нему о&nbsp;НС: НС сразу появится сверху здесь и&nbsp;на&nbsp;табло ТКП&nbsp;– в&nbsp;строке НС, карточке и&nbsp;ореолом на&nbsp;карте. Этих двух кнопок в&nbsp;макете нет, они добавлены для&nbsp;проверки связи РМ и&nbsp;ТКП.</p>
+  <p>Данные условные: маршруты, дороги, составы, бригады и&nbsp;техоперации собираются по&nbsp;номеру поезда и&nbsp;одинаковы при&nbsp;каждом открытии одной смены. «Как в&nbsp;макете» даёт ровно таблицу и&nbsp;паспорт Т-106 из&nbsp;Figma.</p>
+</section>
+<!-- обычные скрипты, а не модули: так страница открывается и двойным кликом (file:///). Собираются tools/build.py из js/*.js -->
+<script src="data/data.js"></script>
+<script src="js/rm-bundle.js"></script>
+</body>
+</html>

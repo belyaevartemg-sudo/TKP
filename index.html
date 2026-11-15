@@ -11,6 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=block" rel="stylesheet">
 <link rel="stylesheet" href="css/board.css">
+<script>try{var t=new URLSearchParams(location.search).get("theme")||localStorage.getItem("tkp-theme");if(t==="light")document.documentElement.dataset.theme="light"}catch(e){}</script>
 </head>
 <body>
 <header class="bar">
@@ -20,6 +21,8 @@
     <button class="btn" id="heavy" type="button" aria-pressed="false">Загруженная смена <kbd>H</kbd></button>
     <button class="btn" id="ns" type="button" aria-pressed="false"><span id="ns-txt">НС: нет</span> <kbd>N</kbd></button>
     <button class="btn" id="sample" type="button">Как в&nbsp;макете <kbd>M</kbd></button>
+    <button class="btn" id="theme" type="button" aria-pressed="false"><span id="theme-txt">Тема: тёмная</span> <kbd>L</kbd></button>
+    <a class="btn" href="rm.html" target="rm">Открыть РМ</a>
     <button class="btn" id="full" type="button">На&nbsp;весь экран <kbd>F</kbd></button>
   </div>
 </header>
@@ -45,7 +48,9 @@
   <p>Поезда ближе 70&nbsp;px друг к&nbsp;другу объединяются в&nbsp;один значок с&nbsp;числом: «3»&nbsp;– три поезда, «1+2»&nbsp;– один красный и&nbsp;два жёлтых. Рамка цвета самого тяжёлого поезда, подпись группы&nbsp;– по&nbsp;самому долгому опозданию: «Т-128 и&nbsp;ещё 2».</p>
   <p>Свой поезд добавляется строкой под кнопками: номер можно не&nbsp;писать, станция&nbsp;– с&nbsp;подсказками, опоздание как&nbsp;удобно: 45, 1:30, 1ч30. Табло сразу пересчитывается, значок нового поезда мигает, а&nbsp;под строкой видно, в&nbsp;какую колонку он&nbsp;попал и&nbsp;досталась&nbsp;ли ему подпись.</p>
   <p>Кнопка «НС» переключает три состояния: нет НС, одна НС и&nbsp;несколько. При&nbsp;одной НС сверху и&nbsp;справа её&nbsp;карточки, на&nbsp;карте ореол, жёлтые подписи временно скрыты. При&nbsp;нескольких верхняя полоса становится списком (до&nbsp;трёх строк, дальше «ещё N НС»), карточка справа подробно показывает главную&nbsp;– ту, что идёт дольше всех, у&nbsp;каждой НС свой ореол на&nbsp;карте.</p>
+  <p>Отказ инфраструктуры&nbsp;– ещё не&nbsp;НС: он&nbsp;виден в&nbsp;карточке своего полигона по&nbsp;краям табло жёлтым квадратом «!» с&nbsp;перегоном и&nbsp;временем начала. НС он&nbsp;становится, если остановил пассажирский поезд с&nbsp;людьми: тогда сверху и&nbsp;справа карточки НС, на&nbsp;карте ореол, а&nbsp;в&nbsp;карточке полигона красная строка «НС · отказ…». Случайная смена иногда даёт отказ, а&nbsp;в&nbsp;режиме НС&nbsp;– иногда НС из-за&nbsp;отказа.</p>
   <p>«Загруженная смена» даёт 32–44 опаздывающих поезда: так видно, как табло ведёт себя на&nbsp;пределе. Колонки полигонов показывают первые восемь поездов и&nbsp;«+N», подписи, которым не&nbsp;хватило места, снимаются, значки остаются.</p>
+  <p>Кнопка «Тема» переключает табло на&nbsp;светлую палитру&nbsp;– ту&nbsp;же, что у&nbsp;светлых вариантов ТКП и&nbsp;рабочих мест в&nbsp;Figma. Текст в&nbsp;ней не&nbsp;ниже 4,5:1 к&nbsp;своему фону, значки не&nbsp;ниже 3:1; жёлтые значки на&nbsp;карте&nbsp;– с&nbsp;белой обводкой, иначе они сливаются с&nbsp;заливкой полигонов. Выбор запоминается.</p>
   <details>
     <summary>Свои данные</summary>
     <p>Поправьте список поездов или&nbsp;другие поля и&nbsp;нажмите «Показать». Станция&nbsp;– из&nbsp;каталога ниже, или&nbsp;укажите у&nbsp;поезда свои координаты: <code>"lat": 55.75, "lon": 37.62</code>. Полигон определится по&nbsp;карте сам. Обязательны только <code>id</code>, <code>delay</code> (минуты) и&nbsp;станция или&nbsp;координаты.</p>
@@ -55,8 +60,10 @@
     <p><b>Каталог станций:</b> <span id="stations"></span></p>
   </details>
   <h2>Источник</h2>
-  <p>Макет&nbsp;– Figma, вариант В&nbsp;(штатный режим) и&nbsp;Г (НС). Карта&nbsp;– Natural Earth (общественное достояние), коническая проекция Ламберта. Данные смены условные.</p>
+  <p>Макет&nbsp;– Figma, вариант В&nbsp;(штатный режим), Г&nbsp;(НС) и&nbsp;Д (НС из-за&nbsp;отказа СЦБ). Карта&nbsp;– Natural Earth (общественное достояние), коническая проекция Ламберта. Данные смены условные.</p>
 </section>
-<script type="module" src="js/app.js"></script>
+<!-- обычные скрипты, а не модули: так страница открывается и двойным кликом (file:///). Собираются tools/build.py из js/*.js -->
+<script src="data/data.js"></script>
+<script src="js/bundle.js"></script>
 </body>
 </html>
