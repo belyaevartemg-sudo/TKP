@@ -19,11 +19,11 @@
 .rm :focus-visible{outline:3px solid var(--amb);outline-offset:2px}
 
 /* шапка: роль и пользователь */
-.rm-top{position:absolute;left:0;top:0;width:4080px;height:44px;display:flex;align-items:center;gap:6px;padding:0 12px;font-size:18px;color:var(--sec)}
+.rm-top{position:absolute;left:0;top:0;width:4080px;height:44px;display:flex;align-items:center;gap:8px;padding:0 12px;font-size:26px;color:var(--sec)}
 .rm-top-l{margin-right:6px}
-.rm-tab{padding:5px 12px;border-radius:6px;font-weight:600;color:var(--mut)}
+.rm-tab{padding:2px 16px;border-radius:8px;font-weight:600;color:var(--sec);line-height:36px}
 .rm-tab.on{background:var(--chipbg);color:var(--blue)}
-.rm-user{margin-left:auto;font-size:22px;color:var(--text)}
+.rm-user{margin-left:auto;font-size:26px;color:var(--text)}
 
 /* тревоги и НС */
 .rm-alarm{left:6px;top:44px;width:2688px;height:104px;display:flex;align-items:center;gap:20px;padding:0 30px}

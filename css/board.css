@@ -1,5 +1,6 @@
 [hidden]{display:none!important}
 :root{
+  --bezel:#22262c; --bezel-edge:#3b414a;
   --bg:#0e1116; --panel:#161b22; --line:#1f2630; --line2:#2b3440;
   --text:#e8edf2; --sec:#a9b3bf; --mut:#838d9a;
   --amb:#f2b233; --red:#ff4d4d; --rbg:#1a0507; --green:#3ccb7f; --orange:#ff7a1a;
@@ -65,8 +66,10 @@ body.present .add{display:none}
 @media (prefers-reduced-motion:reduce){.board .flash{animation:none;outline-color:var(--amb)}}
 .stat{font-size:14px;color:var(--sec);padding:8px 16px 0;min-height:30px;font-variant-numeric:tabular-nums}
 .stat b{color:var(--text);font-weight:600}
-.stage{padding:12px 16px 16px}
-.board-wrap{position:relative;width:100%;aspect-ratio:5400/2500;overflow:hidden;border-radius:6px;background:var(--bg)}
+.stage{padding:28px 34px 36px}
+/* рамка дисплея: корпус монитора тенью, размеры экрана не меняет (масштаб считается от clientWidth) */
+.board-wrap{position:relative;width:100%;aspect-ratio:5400/2500;overflow:hidden;border-radius:6px;background:var(--bg);
+  box-shadow:0 0 0 2px #000,0 0 0 14px var(--bezel),0 0 0 15px var(--bezel-edge),0 18px 40px -10px rgba(0,0,0,.55)}
 .foot{padding:0 16px 32px;max-width:1100px;color:var(--sec);font-size:15px;line-height:1.55}
 .foot h2{font-size:17px;color:var(--text);font-weight:600;margin:20px 0 6px}
 .foot p+p{margin-top:6px}
@@ -78,7 +81,7 @@ textarea{width:100%;min-height:320px;background:var(--panel);color:var(--text);b
 .err{color:var(--red);margin-top:8px}
 body.present .bar,body.present .stat,body.present .foot{display:none}
 body.present .stage{padding:0}
-body.present .board-wrap{border-radius:0}
+body.present .board-wrap{border-radius:0;box-shadow:none}
 
 /* ---------- табло 5400×2500 (координаты – px табло, как в Figma) ---------- */
 .board{position:absolute;left:0;top:0;width:5400px;height:2500px;transform-origin:0 0;background:var(--bg);
