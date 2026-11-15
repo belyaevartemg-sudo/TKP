@@ -1973,9 +1973,10 @@ function exportNow() {
   download(`инфраструктура_сейчас_${S.data.time.replace(":", "-")}.csv`, [["№", "Событие", "Направление", "Полигон", "Дорога", "Перегон", "Начало", "До", "Ограничение", "Поезда на участке", "Влияние"], ...rows].map(r => r.map(csvCell).join(";")).join("\r\n"), "text/csv;charset=utf-8");
 }
 
-// ---------- РМ «Отправление и информирование» (Figma, секция 5: 263:8786 штатный, 270:7740 НС, 279:8080 окно текста) ----------
-// Слева отправления и прибытие с оповещением, справа общие «Опоздания», очередь «Ждут оповещения» и 14 городов.
-// Объявляет только очередь (галочки и одна кнопка); текст правится в окне на месте паспорта. При НС очередь – наверху слева, справа карточка НС.
+// ---------- РМ «Отправление и информирование» (Figma, секция 5: 263:8786 штатный, 295:8650 НС, 295:9870 окно текста) ----------
+// Слева отправления и прибытие с оповещением, справа общие «Опоздания», журнал «Объявлено за смену» и 14 городов.
+// Очереди отдельным списком нет: то, что ждёт объявления, стоит в своих таблицах сверху с галочкой в «Оповещении», объявляет
+// одна кнопка «Объявить выбранные» в шапке «Прибытия» (отмеченное в обеих таблицах своего участка). Текст правится в окне на месте паспорта.
 const SIDES = [["west", "Запад", "Окт, Моск, Ю-З"], ["east", "Восток", "С-З, Вост"], ["all", "Вся сеть", ""]];
 const sidePolys = s => s === "west" ? WEST : s === "east" ? EAST : POLYS;
 const CH = ["табло", "приложение", "SMS", "голос"];
@@ -1990,9 +1991,13 @@ const dMk = (m, s) => m > 240 ? mk.r(s) : m >= 60 ? mk.o(s) : m > 5 ? mk.a(s) : 
 function sidesHtml(t) {
   return `<span class="ifo-side" role="group" aria-label="Полигоны"><span class="sec">Полигоны:</span>${SIDES.map(([k, a, b]) => `<button type="button" data-side="${t}:${k}" aria-pressed="${ui.side[t] === k}">${a}${b ? ` <span>${b}</span>` : ""}</button>`).join("")}</span>`;
 }
-// колонка «Оповещение»: статус; то, что ждёт объявления, открывает окно текста (кнопки «Объявить» в строках нет – она одна, в очереди)
+// ждёт объявления: НС, новое опоздание от +0:20, сдвиг прогноза, задержка отправления
+const isQ = q => q.k === "ns" || q.k === "wait" || q.k === "shift";
+// колонка «Оповещение»: статус; у ждущих – галочка «объявить» и ссылка на окно текста (кнопка «Объявить» одна, в шапке «Прибытия»)
 function annCell(q) {
-  const A = q.ann, chs = qCh(q).join(" · "), edit = t => `<button type="button" class="ifo-a" data-edit="${esc(q.key)}" aria-label="${esc(q.id)}: ${t}, открыть текст объявления">${mk.a(22)}<span>${t}</span></button>`;
+  const A = q.ann, chs = qCh(q).join(" · "), on = ui.edit === q.key;
+  const edit = t => `<span class="c"><label class="ifo-ck"><input type="checkbox" data-q="${esc(q.key)}"${ui.qOff.has(q.key) ? "" : " checked"} aria-label="Объявить ${esc(q.id)}"></label>`
+    + `<button type="button" class="ifo-a${on ? " on" : ""}" data-edit="${esc(q.key)}" aria-label="${esc(q.id)}: ${t}, открыть текст объявления">${q.k === "ns" ? mk.r(22) : mk.a(22)}<span>${on ? "в очереди · текст открыт справа" : t}</span></button></span>`;
   if (q.k === "ok") return `<span class="c">${mk.g(22)}<span class="grn">объявлено ${A.at} · ${A.ns ? "НС" : fmtDelay(A.delay)}</span><span class="sec sm">${esc(chs)}</span></span>`;
   if (q.k === "ns" || q.k === "wait") return edit("в очереди · не объявлено");
   if (q.k === "shift") return edit(`в очереди · сдвиг ${fmtDelay(q.delay - A.delay)}`);
@@ -2011,8 +2016,8 @@ function infoList(w) {
   const key = { id: x => num(x.id), k: x => KORD.indexOf(x.k), status: x => DSTO.indexOf(x.status) }[s.k] || (x => x[s.k]);
   const cmp = (a, b) => { const p = key(a), r = key(b); return typeof p === "string" ? p.localeCompare(r, "ru") : p - r; };
   return (w === "d" ? IFO.dep : IFO.arr).filter(x => (x.ns || ps.includes(x.poly)) && (!q || [x.id, x.route, x.at, x.next || "", x.final || ""].some(v => norm(v).includes(q))))
-    // НС всегда сверху, при любом фильтре и сортировке
-    .sort((a, b) => (b.ns ? 1 : 0) - (a.ns ? 1 : 0) || cmp(a, b) * s.dir || (a.rel ?? 0) - (b.rel ?? 0) || num(a.id) - num(b.id));
+    // НС всегда сверху, под ней – то, что ждёт объявления, при любом фильтре и сортировке
+    .sort((a, b) => (b.ns ? 1 : 0) - (a.ns ? 1 : 0) || (isQ(b) ? 1 : 0) - (isQ(a) ? 1 : 0) || cmp(a, b) * s.dir || (a.rel ?? 0) - (b.rel ?? 0) || num(a.id) - num(b.id));
 }
 function infoHead(w, cols) {
   const s = ui.isort[w];
@@ -2021,14 +2026,14 @@ function infoHead(w, cols) {
 }
 function depRow(q) {
   const sc = { "задержан": "amb", "посадка": "blue", "по графику": "sec", "ушёл": "mut" }[q.status];
-  return `<tr class="${q.k === "wait" ? "hl" : ""}"><td><b>${esc(q.id)}</b></td><td>${esc(q.route)}</td><td>${esc(q.at)}</td><td class="sec num">${q.plan}</td>
+  return `<tr class="${q.k === "wait" ? "hl" + (ui.qOff.has(q.key) ? " off" : "") : ""}" data-qrow="${esc(q.key)}"><td><b>${esc(q.id)}</b></td><td>${esc(q.route)}</td><td>${esc(q.at)}</td><td class="sec num">${q.plan}</td>
     <td>${q.delay ? `<span class="c">${mk.a(22)}<b class="amb">${fmtDelay(q.delay)}</b></span>` : '<span class="mut">–</span>'}</td>
     <td class="num ${q.delay && q.status !== "ушёл" ? "amb" : q.status === "ушёл" ? "sec" : ""}">${q.newT}</td><td class="${sc}">${q.status}</td>
     <td class="r">${nf(q.pax)}</td><td class="sec">${q.status === "по графику" ? "–" : q.track}</td><td>${annCell(q)}</td></tr>`;
 }
 function arrRow(q) {
   const x = q.x, c = q.ns ? "red" : dCls(q.delay), m = [q.ns && '<b class="red">НС</b>', q.kids && "дети", q.ctl && "контроль"].filter(Boolean);
-  return `<tr data-id="${esc(q.id)}" class="${q.ns ? "ns" : q.k === "wait" || q.k === "shift" ? "hl" : ""}${ui.sel === q.id ? " sel" : ""}" aria-selected="${ui.sel === q.id}">
+  return `<tr data-id="${esc(q.id)}" data-qrow="${esc(q.key)}" class="${q.ns ? "ns" : q.k === "wait" || q.k === "shift" ? "hl" : ""}${isQ(q) && ui.qOff.has(q.key) ? " off" : ""}${ui.sel === q.id ? " sel" : ""}" aria-selected="${ui.sel === q.id}">
     <td><b class="${q.ns ? "red" : ""}">${esc(q.id)}</b></td><td>${esc(q.route)}</td>
     <td>${q.ns ? `<span class="c">${mk.r(22)}<b class="red">НС ${fmtDelay(x.delay)}</b></span>` : q.delay > 5 ? `<span class="c">${dMk(q.delay, 22)}<b class="${c}">${fmtDelay(x.delay)}</b></span>` : `<span class="sec">${fmtDelay(x.delay)}</span>`}</td>
     <td>${esc(q.ns ? q.at + " · стоит" : q.next)}</td><td class="sec num">${q.planN}</td><td class="num ${q.ns ? "red" : q.delay > 5 ? c : ""}">${q.ns ? "не определён" : q.progN}</td><td class="sec">UTC+${q.tzN}</td>
@@ -2040,10 +2045,11 @@ function infoPanel(w) {
   const d = w === "d", cols = d ? IDEP : IARR;
   return `<section class="p ifo-${d ? "dep" : "arr"}" id="ifo-${w}" aria-label="${d ? "Отправления" : "Прибытие и оповещение"}">
     <div class="bh"><h2>${d ? "Отправления" : "Прибытие и оповещение"}</h2><span class="sec" id="ifo-sub-${w}"></span>${sidesHtml(w)}
+      ${d ? "" : (() => { const n = annSel().length; return `<button type="button" class="pbtn pri" id="q-ann"${n ? "" : " disabled"}>Объявить выбранные · ${n}</button>`; })()}
       <input type="search" class="ifo-qs" data-iq="${w}" value="${esc(ui.iq[w])}" placeholder="Поиск: номер, станция, маршрут" aria-label="Поиск: номер, станция, маршрут" autocomplete="off">
       <button type="button" class="pbtn" data-iexp="${w}">Выгрузить</button></div>
     <div class="dep-scroll ifo-scroll" id="ifo-scroll-${w}" tabindex="0" aria-label="${d ? "Отправления" : "Поезда в пути"}, листается"><table>${colg(cols)}<thead>${infoHead(w, cols)}</thead><tbody id="ifo-tb-${w}"></tbody></table></div>
-    ${d ? "" : `<p class="ifo-note">Время – местное по станции. Оповещать при опоздании от +0:${ANN_MIN} или сдвиге прогноза на ${ANN_SHIFT} мин; каналы – табло вокзалов, приложение, SMS. Правило – допущение команды.</p>`}
+    ${d ? "" : `<p class="ifo-note">Время – местное по станции. Галочки – в «Оповещении»; «Объявить выбранные» объявляет отмеченное в обеих таблицах своего участка. Оповещать от +0:${ANN_MIN} или при сдвиге прогноза на ${ANN_SHIFT} мин.</p>`}
   </section>`;
 }
 let ifoKey = "";
@@ -2052,27 +2058,39 @@ function infoBody(w) {
   if (!tb) return;
   tb.innerHTML = list.length ? list.slice(0, 400).map(w === "d" ? depRow : arrRow).join("") : `<tr><td colspan="${(w === "d" ? IDEP : IARR).length}" class="empty">Ничего не найдено.</td></tr>`;
   if (w === "d") { const P = ps.reduce((a, p) => ({ plan: a.plan + IFO.plan[p].plan, sent: a.sent + IFO.plan[p].sent }), { plan: 0, sent: 0 });
-    $("#ifo-sub-d").textContent = `план ${P.plan} · отправлено ${P.sent} · задержано ${list.filter(q => q.delay).length}`; }
-  else { const all = IFO.arr.filter(q => ps.includes(q.poly)), waitN = IFO.arr.filter(q => (q.ns || ps.includes(q.poly)) && ["wait", "shift", "ns"].includes(q.k)).length;
-    $("#ifo-sub-a").textContent = `в пути ${nf(all.length)}${IFO.arr.some(q => q.ns) ? " · НС сверху при любом фильтре" : ""} · ждут оповещения ${waitN}${list.length > 400 ? " · показаны первые 400, уточните поиском" : ""}`; }
+    $("#ifo-sub-d").textContent = `план ${P.plan} · отправлено ${P.sent} · задержано ${list.filter(q => q.delay).length}${sideQ("d").length ? ` · в очереди ${sideQ("d").length}` : ""}`; }
+  else { const all = IFO.arr.filter(q => ps.includes(q.poly)), waitN = sideQ("a").filter(q => !q.ns).length;
+    $("#ifo-sub-a").textContent = `в пути ${nf(all.length)}${IFO.arr.some(q => q.ns) ? " · НС сверху" : ""}${waitN ? ` · в очереди ${waitN} сверху` : ""}${list.length > 400 ? " · показаны первые 400, уточните поиском" : ""}`; }
 }
-function queueHtml(wide) {
-  const Q = IFO.queue, on = Q.filter(q => !ui.qOff.has(q.key)).length;
-  const what = q => q.kind === "ns" ? `НС · стоит с ${nsSince(q)}: ${q.at}` : q.k === "shift" ? `прогноз ${fmtDelay(q.delay)} · объявлено ${fmtDelay(q.ann.delay)}` : q.kind === "dep" ? `отправление ${q.plan} → ${q.newT}` : `опоздание ${fmtDelay(q.delay)}`;
-  const cols = wide ? [130, 500, 470, 350, 796, null] : [110, 470, 452, null];
-  return `<section class="p ifo-q${wide ? " wide" : ""}" aria-label="Ждут оповещения">
-    <div class="bh"><h2>Ждут оповещения · ${Q.length}</h2><span class="sec">${Q.length ? (wide ? "НС сверху · снять галочку – не объявлять, текст правится щелчком" : "снять галочку – не объявлять, щелчок по строке – текст") : ""}</span>
-      <button type="button" class="pbtn pri" id="q-ann"${on ? "" : " disabled"}>Объявить выбранные · ${on}</button></div>
-    <div class="dep-scroll ifo-scroll" id="ifo-scroll-q" tabindex="0" aria-label="Очередь оповещений, листается"><table><colgroup>${cols.map(w => w ? `<col style="width:${w}px">` : "<col>").join("")}</colgroup>
-    <thead><tr><th>Поезд</th><th>Что изменилось</th><th>Вокзалы</th>${wide ? "<th>Каналы</th><th>Текст объявления</th>" : ""}<th class="r">Объявить</th></tr></thead><tbody>
-    ${Q.length ? Q.map(q => { const off = ui.qOff.has(q.key), red = q.kind === "ns" || q.delay > 240;
-      return `<tr data-edit="${esc(q.key)}" class="${off ? "off" : ""}${q.kind === "ns" ? " ns" : ""}${ui.edit === q.key ? " sel" : ""}">
-        <td><b class="${q.kind === "ns" ? "red" : ""}">${esc(q.id)}</b></td><td><span class="c">${red ? mk.r(22) : mk.a(22)}<span class="${q.kind === "ns" ? "red" : ""}">${esc(what(q))}</span></span></td>
-        <td class="sec">${esc(q.st.join(", "))}</td>${wide ? `<td class="sec">${esc(qCh(q).join(" · "))}</td><td><span class="ifo-txt">«${esc(qText(q))}»</span></td>` : ""}
-        <td class="r"><label class="ifo-ck"><input type="checkbox" data-q="${esc(q.key)}"${off ? "" : " checked"} aria-label="Объявить ${esc(q.id)}"></label></td></tr>`; }).join("")
-      : `<tr><td colspan="${cols.length}" class="empty">Всё объявлено: новые строки появятся, когда опоздание дойдёт до +0:${ANN_MIN} или прогноз сдвинется.</td></tr>`}</tbody></table></div>
-    ${wide ? "" : '<p class="ifo-note">Объявленные строки уходят из очереди, новое время появляется в «Оповещении» таблиц слева.</p>'}
+// ждут объявления в таблице своего участка (без поиска: поиск только прячет строки) и отмеченные из них
+const sideQ = w => (w === "d" ? IFO.dep : IFO.arr).filter(q => isQ(q) && (q.ns || sidePolys(ui.side[w]).includes(q.poly)));
+const annSel = () => [...sideQ("a"), ...sideQ("d")].filter(q => !ui.qOff.has(q.key));
+// журнал «Объявлено за смену»: своё (d.ann), объявленное до открытия окна и посадки, по участку таблицы прибытия
+function journalOf() {
+  const ps = sidePolys(ui.side.a), now = toMin(S.data.time), me = $(".rm-user")?.textContent || "оператор";
+  const J = [];
+  for (const q of [...IFO.arr, ...IFO.dep]) {
+    if (!(q.ns || ps.includes(q.poly))) continue;
+    if (q.ann) J.push({ at: q.ann.at, id: q.id, ns: !!q.ann.ns,
+      what: q.ann.ns ? `НС · стоит: ${q.at}` : q.kind === "dep" ? `отправление ${q.newT} · ${fmtDelay(q.ann.delay)}` : `прибытие ${q.final} ${q.progE} · ${fmtDelay(q.ann.delay)}`,
+      ch: qCh(q).join(" · "), who: me });
+    if (q.k === "board") J.push({ at: q.boardAt, id: q.id, what: `посадка, путь ${q.track}`, ch: "табло · голос", who: "автоматически" });
+  }
+  const ago = t => (now - toMin(t) + 1440) % 1440;
+  return J.sort((a, b) => ago(a.at) - ago(b.at) || num(a.id) - num(b.id));
+}
+function journalHtml() {
+  const J = journalOf(), side = SIDES.find(s => s[0] === ui.side.a)[1].toLowerCase();
+  return `<section class="p ifo-j" aria-label="Объявлено за смену">
+    <div class="bh"><h2>Объявлено за смену · ${J.length}</h2><span class="sec">${ui.side.a === "all" ? "вся сеть" : `свой участок · ${side}`}</span><button type="button" class="pbtn" id="j-exp">Выгрузить</button></div>
+    <div class="dep-scroll ifo-scroll" id="ifo-scroll-j" tabindex="0" aria-label="Объявлено за смену, листается"><table><colgroup><col style="width:90px"><col style="width:110px"><col style="width:520px"><col style="width:340px"><col></colgroup>
+    <thead><tr><th>Время</th><th>Поезд</th><th>Что объявили</th><th>Каналы</th><th>Кто</th></tr></thead><tbody>
+    ${J.length ? J.map(j => `<tr><td class="num sec">${j.at}</td><td><b class="${j.ns ? "red" : ""}">${esc(j.id)}</b></td><td>${esc(j.what)}</td><td class="sec">${esc(j.ch)}</td><td class="sec">${esc(j.who)}</td></tr>`).join("")
+      : `<tr><td colspan="5" class="empty">За смену ещё ничего не объявлено.</td></tr>`}</tbody></table></div>
   </section>`;
+}
+function exportJournal() {
+  download(`объявлено_${ui.side.a}_${S.data.time.replace(":", "-")}.csv`, [["Время", "Поезд", "Что объявили", "Каналы", "Кто"], ...journalOf().map(j => [j.at, j.id, j.what, j.ch, j.who])].map(r => r.map(csvCell).join(";")).join("\r\n"), "text/csv;charset=utf-8");
 }
 function citiesHtml() {
   return `<section class="p ifo-city" aria-label="14 городов"><div class="bh"><h2>14 городов</h2><span class="sec">местное время, погода, поезда в пути до города</span></div>
@@ -2095,16 +2113,16 @@ function editorHtml(q) {
     <p class="ifo-cnt"><span>Из данных: номер, маршрут, станция, время</span><span id="ed-cnt">${cntTxt(E.text.length)}</span></p>
     <p class="h4">Каналы</p><div class="ifo-ch">${CH.map(c => `<label><input type="checkbox" data-ch="${c}"${E.ch.has(c) ? " checked" : ""}><b>${c === "SMS" ? c : cap(c)}</b><span class="sec">${esc(rc[c])}</span></label>`).join("")}</div>
     <p class="h4">Так будет на табло</p><p class="ifo-board" id="ed-board">${esc(boardLine(q, E.tpl === "own" ? tplOf(q) : E.tpl))}</p>
-    <div class="ifo-act"><span class="sec">Объявляется из очереди кнопкой «Объявить выбранные»</span><button type="button" class="pbtn" id="ed-reset">Вернуть шаблон</button><button type="button" class="pbtn pri" id="ed-save">Сохранить текст</button></div>
+    <div class="ifo-act"><span class="sec">Объявляет кнопка «Объявить выбранные» в «Прибытии»</span><button type="button" class="pbtn" id="ed-reset">Вернуть шаблон</button><button type="button" class="pbtn pri" id="ed-save">Сохранить текст</button></div>
   </section>`;
 }
 function renderInfoMain() {
   const n = nsl[0], top = {};
-  for (const w of ["d", "a", "q"]) top[w] = $("#info #ifo-scroll-" + w)?.scrollTop;
+  for (const w of ["d", "a"]) top[w] = $("#info #ifo-scroll-" + w)?.scrollTop;
   rm.classList.toggle("info-ns", !!n);
-  $("#info").innerHTML = (n ? queueHtml(true) : "") + infoPanel("d") + infoPanel("a");
+  $("#info").innerHTML = infoPanel("d") + infoPanel("a");
   infoBody("d"); infoBody("a");
-  for (const w of ["a", "q"]) { const b = $("#info #ifo-scroll-" + w); if (top[w] != null && b) b.scrollTop = top[w]; }
+  for (const w of ["a"]) { const b = $("#info #ifo-scroll-" + w); if (top[w] != null && b) b.scrollTop = top[w]; }
   // отправления: при новой смене или фильтре – к ближайшим (три ушедших сверху), иначе – где были
   const key = `${S.source}|${S.seed}|${S.data.time}|${ui.side.d}|${ui.isort.d.k}${ui.isort.d.dir}|${ui.iq.d}`, box = $("#ifo-scroll-d");
   if (key !== ifoKey) { ifoKey = key; const L = infoList("d"), k = ui.isort.d.k === "rel" && ui.isort.d.dir > 0 ? Math.max(0, L.findIndex(q => q.status !== "ушёл") - 3) : 0, row = box.querySelectorAll("tbody tr")[k];
@@ -2112,12 +2130,12 @@ function renderInfoMain() {
   else if (top.d != null) box.scrollTop = top.d;
 }
 function renderInfoRight() {
-  const x = ui.sel && findTrain(ui.sel), q = ui.edit && findQ(ui.edit), top = $("#right #ifo-scroll-q")?.scrollTop;
+  const x = ui.sel && findTrain(ui.sel), q = ui.edit && findQ(ui.edit), top = $("#right #ifo-scroll-j")?.scrollTop;
   if (x) { $("#right").innerHTML = passHtml(x); return; }
   if (q) { $("#right").innerHTML = editorHtml(q); return; }
   if (ui.edit) { ui.edit = null; ui.ed = null; }
-  $("#right").innerHTML = nsl[0] ? nsCarHtml(nsl[0]) : queueHtml(false) + citiesHtml();
-  const b = $("#right #ifo-scroll-q"); if (top != null && b) b.scrollTop = top;
+  $("#right").innerHTML = nsl[0] ? nsCarHtml(nsl[0]) : journalHtml() + citiesHtml();
+  const b = $("#right #ifo-scroll-j"); if (top != null && b) b.scrollTop = top;
 }
 function openEdit(key) {
   const q = findQ(key); if (!q) return;
@@ -2130,7 +2148,7 @@ function openEdit(key) {
 function closeEdit() { ui.edit = null; ui.ed = null; renderInfoMain(); renderInfoRight(); }
 function announce() {
   const d = S.data; d.ann = d.ann || {};
-  for (const q of IFO.queue) if (!ui.qOff.has(q.key)) d.ann[q.key] = { at: d.time, delay: q.delay, ns: q.kind === "ns" };
+  for (const q of annSel()) d.ann[q.key] = { at: d.time, delay: q.delay, ns: q.kind === "ns" };
   ui.qOff.clear(); commit();
 }
 function exportInfo(w) {
@@ -2151,6 +2169,7 @@ function infoClick(e) {
     if (s.k === k) s.dir = -s.dir; else ui.isort[w] = { k, dir: ["delay", "pax"].includes(k) ? -1 : 1 }; stop(); renderInfoMain(); $(`[data-isort="${so}"]`)?.focus(); return; }
   const ex = t.closest("[data-iexp]")?.dataset.iexp; if (ex) { stop(); exportInfo(ex); return; }
   if (t.closest("#q-ann")) { stop(); announce(); return; }
+  if (t.closest("#j-exp")) { stop(); exportJournal(); return; }
   const tp = t.closest("[data-tpl]")?.dataset.tpl;
   if (tp && ui.ed) { const q = findQ(ui.edit); ui.ed.tpl = tp; if (tp !== "own") ui.ed.text = annText(q, tp, toMin(S.data.time)); stop(); renderInfoRight(); $("#ed-text")?.focus(); return; }
   const bid = t.closest("button")?.id;
@@ -2163,7 +2182,9 @@ function infoClick(e) {
 }
 function infoChange(e) {
   const k = e.target.dataset.q;
-  if (k != null) { if (e.target.checked) ui.qOff.delete(k); else ui.qOff.add(k); if (nsl[0]) renderInfoMain(); else renderInfoRight(); $(`input[data-q="${CSS.escape(k)}"]`)?.focus(); return; }
+  if (k != null) { if (e.target.checked) ui.qOff.delete(k); else ui.qOff.add(k);
+    $(`#info tr[data-qrow="${CSS.escape(k)}"]`)?.classList.toggle("off", !e.target.checked);
+    const n = annSel().length, b = $("#q-ann"); if (b) { b.textContent = `Объявить выбранные · ${n}`; b.disabled = !n; } return; }
   const c = e.target.dataset.ch; if (c != null && ui.ed) { if (e.target.checked) ui.ed.ch.add(c); else ui.ed.ch.delete(c); }
 }
 function infoInput(e) {
@@ -2249,7 +2270,7 @@ function render() {
 function renderStat() {
   const d = S.data, mine = scope().flatMap(p => ALL[p]), lateN = mine.filter(x => x.delay > 5).length;
   const src = isSample() ? "смена из макета" : S.source === "seed" ? `${S.heavy ? "загруженная" : "случайная"} смена №${S.seed}` : "свои данные";
-  const what = INFO ? `ждут оповещения <b>${IFO.queue.length}</b>, объявлено за смену <b>${Object.keys(d.ann || {}).length}</b>` : INFRA ? `действует событий <b>${INF.now.length}</b>, отказов <b>${INF.now.filter(e => e.lvl !== "amb").length}</b>, записей в журнале <b>${INF.journal.length}</b>` : CREWS ? `бригад на линии <b>${mine.length}</b>, превышение <b>${mine.filter(x => x.crew.over > 0).length}</b>, близко к концу работы <b>${mine.filter(x => x.crew.over <= 0 && x.crew.left < 60).length}</b>`
+  const what = INFO ? `ждут оповещения <b>${annSel().length}</b>, объявлено за смену <b>${Object.keys(d.ann || {}).length}</b>` : INFRA ? `действует событий <b>${INF.now.length}</b>, отказов <b>${INF.now.filter(e => e.lvl !== "amb").length}</b>, записей в журнале <b>${INF.journal.length}</b>` : CREWS ? `бригад на линии <b>${mine.length}</b>, превышение <b>${mine.filter(x => x.crew.over > 0).length}</b>, близко к концу работы <b>${mine.filter(x => x.crew.over <= 0 && x.crew.left < 60).length}</b>`
     : `в пути <b>${mine.length}</b>, опаздывают <b>${lateN}</b>`;
   $("#stat").innerHTML = `${src} · ${d.time} · ${scopeLabel()}: ${what}${nsl.length ? ` · НС: <b>${nsl.map(n => n.train).join(", ")}</b>` : ""} · смена общая с окном ТКП`;
   $("#ns").setAttribute("aria-pressed", S.mode !== "norm");
